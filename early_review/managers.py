@@ -13,6 +13,7 @@ class AuthUserManager(BaseUserManager):
         """
         random_string = kwargs.get('randomString', None)
         private = kwargs.get('private',None)
+        public = kwargs.get('public', None)
 
         if not email:
             raise ValueError('Users must have an email address')
@@ -21,7 +22,8 @@ class AuthUserManager(BaseUserManager):
             email=self.normalize_email(email),
             user_name=user_name,
             random_string=random_string,
-            private_key = private
+            private_key = private,
+            public_key = public
         )
 
         user.set_password(password)

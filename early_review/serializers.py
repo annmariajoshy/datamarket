@@ -68,3 +68,10 @@ class UserProductReviewBeforeSpamSerializer(serializers.ModelSerializer):
         model =  UserProductReviewBeforeSpam
         # fields = [f.name for f in model._meta.fields]
         fields = '__all__'
+
+
+class EncryptFileSerializer(serializers.Serializer):
+    file_upload = serializers.FileField()
+
+    class Meta:
+        fields = 'file_upload'

@@ -57,7 +57,8 @@ class AuthUser(AbstractBaseUser, PermissionsMixin):
     user_name = models.CharField(max_length=128, null=True, blank=True)
     email = models.EmailField(unique=True)
     random_string = models.CharField(max_length=256, null=True, blank=True)
-    private_key = models.CharField(max_length=100000, null=True, blank= True)
+    private_key = models.TextField(max_length=100000, null=True, blank= True)
+    public_key = models.TextField(max_length=100000, null=True, blank=True)
     is_staff = models.BooleanField(_('staff status'), default=False)
 
     objects = AuthUserManager()
