@@ -425,19 +425,8 @@ class EncryptPdfFileViewSet(viewsets.ViewSet):
         product_review = AuthUser.objects.filter(email=email).first()
         public = product_review.public_key
         private = product_review.private_key
-        # ====================================
-        # public1 = b'-----BEGIN PUBLIC KEY-----\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDWZkgcpaG3yHMa0Ru2y+wf8k7G\nBFTlav8Wwz49fyjlKQWc+k02kCVZeydV8LeeD3JDrBDN3eEebpvA8bmwt8izb1b/\nDn+DMGnKwJmO+Rtfzw697xiNR3pwm2BsiPT+69y+fuXqPzbMWXRWT5UF2jAkU72J\n15EXQ5vSY2b8pSA0TwIDAQAB\n-----END PUBLIC KEY-----'
-        # private = b'-----BEGIN RSA PRIVATE KEY-----\nMIICXQIBAAKBgQDWZkgcpaG3yHMa0Ru2y+wf8k7GBFTlav8Wwz49fyjlKQWc+k02\nkCVZeydV8LeeD3JDrBDN3eEebpvA8bmwt8izb1b/Dn+DMGnKwJmO+Rtfzw697xiN\nR3pwm2BsiPT+69y+fuXqPzbMWXRWT5UF2jAkU72J15EXQ5vSY2b8pSA0TwIDAQAB\nAoGABqtCszJO25SD2BOXEzX/iJ9N5mwKg/8H6rbKByt0asDa6J8Cx5+ZyAo13j8K\nDjy0/God37JamNj1fqhiq/P/GAnZavz7VlMkW5H+AsPRFkw56kBwg+Wa+ZkZ05DX\nn2kvKqIFgJHDkvK1qVtM3bTqYneTxAgjmXkSYY5KHL2BspECQQDijEGixJo5lNOr\nEC3w2ydq+nO7mEmInB1T6hyJmx8WSo6D4vf+XE3NnqlaDM5/ovJcs3KmbNcygzZz\nXpr5No/JAkEA8kW3W1YID8Or38WItX+1AoFmYlDEdoXn8PuGJlOiJLJ00OzwB3zZ\nNOYzrrEDvX8VDwYQusffbRSKKSSlpMwfVwJBAJgyGbY71lBwx3LYv8RbtrOL5kxV\nFrGMD7fcQ6e+argTBoNb67caU7qbqLIygFgHJENa2t8rp7brp50CJaLfIOECQQDV\ni4nQogY9DvXiKdUUVdqQuMosApEI/4KvsKRQCAu1WO8KcK4pi2xQ6k/HvRNU5j0D\nnw8D88UF+sLE/R5cIefFAkB3gu/h1TVLpdXS5W2GaudiNsSl52gG8SjxnNhBH4lw\nGH9sBVYxkmROZTMBwL6nwoKuzu1sAJf3zLbALo/XP480\n-----END RSA PRIVATE KEY-----'
         rsa_publickey = RSA.importKey(public.encode('utf-8'))
         rsa_privatekey = RSA.importKey(private.encode('utf-8'))
-        print('importkey', rsa_publickey)
-        cipher = PKCS1_OAEP.new(rsa_publickey)
-        cipher1 = PKCS1_OAEP.new(rsa_privatekey)
-        print('cipher', cipher)
-        ciphertext = cipher.encrypt(b'hello')
-        print('key encryped', ciphertext)
-        plaintext = cipher1.decrypt(ciphertext)
-        print('key decrypted', plaintext)
 
         lettersAndDigits = string.ascii_letters + string.digits
         randomString = "".join(random.choice(lettersAndDigits) for i in range(32))
