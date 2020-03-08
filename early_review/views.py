@@ -44,10 +44,10 @@ import smtplib, ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+from django.shortcuts import render
+from django.conf import settings
+from django.core.files.storage import FileSystemStorage
 
-# nltk.download('movie_reviews')
-# nltk.download(' product_reviews_1')
-# nltk.download('product_reviews_1')
 
 
 class FullListAPI:
@@ -124,222 +124,6 @@ class FullListAPI:
         return Response(success_data, status=status.HTTP_201_CREATED)
 
 
-class UserProductReviewAfterSpamViewSet(viewsets.ModelViewSet, FullListAPI):
-    queryset = UserProductReviewAfterSpam.objects.all()
-    serializer_class = UserProductReviewAfterSpamSerializer
-
-    # filter_fields = ['product_id']
-
-    def list(self, request):
-        self.queryset = self.queryset.filter_by_query_params(request)
-        return super(UserProductReviewAfterSpamViewSet, self).list(request)
-
-    @list_route()
-    def early(self, request):
-        product_id = request.GET.get('product_id', None)
-        if not product_id:
-            return Response(['Please Send product_id as query string.'])
-        try:
-            product_review = UserProductReviewAfterSpam.objects.filter(product_id=product_id)
-            first_date = product_review.order_by('date_review').first().date_review
-            last_date = product_review.order_by('date_review').last().date_review
-            difference = (last_date - first_date) / 3
-            second_date = first_date + datetime.timedelta(days=difference.days)
-            output_data = product_review.filter(date_review__gte=first_date,
-                                                date_review__lte=second_date)
-        except UserProductReviewAfterSpam.DoesNotExist:
-            return Response(['Please send valid new product_id.'])
-        early_rating_tot = 0
-        lst_data = []
-        for row in output_data:
-            dct_data = {}
-            dct_data['id'] = row.id
-            dct_data['product_id'] = row.product_id
-            dct_data['product_name'] = row.product_name
-            dct_data['reviewer_id'] = row.reviewer_id
-            dct_data['reviewer_name'] = row.reviewer_name
-            dct_data['review_text'] = row.review_text
-            dct_data['overall_rating'] = row.overall_rating
-            early_rating_tot += row.overall_rating
-            dct_data['summary_product'] = row.summary_product
-            dct_data['timestamp_review'] = row.timestamp_review
-            dct_data['date_review'] = row.date_review
-            lst_data.append(dct_data)
-        rating_avg = early_rating_tot / len(output_data)
-        early_count = len(output_data)
-        data = {'rating_avg': rating_avg, 'early_count': early_count, 'data': lst_data}
-        return Response(data)
-
-    @list_route()
-    def middle(self, request):
-        product_id = request.GET.get('product_id', None)
-        if not product_id:
-            return Response(['Please Send product_id as query string.'])
-        try:
-            product_review = UserProductReviewAfterSpam.objects.filter(product_id=product_id)
-            first_date = product_review.order_by('date_review').first().date_review
-            last_date = product_review.order_by('date_review').last().date_review
-            difference = (last_date - first_date) / 3
-            second_date = first_date + datetime.timedelta(days=difference.days)
-            third_date = second_date + datetime.timedelta(days=difference.days)
-            output_data = product_review.filter(date_review__gt=second_date,
-                                                date_review__lte=third_date)
-        except UserProductReviewAfterSpam.DoesNotExist:
-            return Response(['Please send valid new product_id.'])
-        middle_rating_tot = 0
-        lst_data = []
-        for row in output_data:
-            dct_data = {}
-            dct_data['id'] = row.id
-            dct_data['product_id'] = row.product_id
-            dct_data['product_name'] = row.product_name
-            dct_data['reviewer_id'] = row.reviewer_id
-            dct_data['reviewer_name'] = row.reviewer_name
-            dct_data['review_text'] = row.review_text
-            dct_data['overall_rating'] = row.overall_rating
-            middle_rating_tot += row.overall_rating
-            dct_data['summary_product'] = row.summary_product
-            dct_data['timestamp_review'] = row.timestamp_review
-            dct_data['date_review'] = row.date_review
-            lst_data.append(dct_data)
-        rating_avg = middle_rating_tot / len(output_data)
-        middle_count = len(output_data)
-        data = {'rating_avg': rating_avg, 'middle_count': middle_count, 'data': lst_data}
-
-        return Response(data)
-
-    @list_route()
-    def laggard(self, request):
-        product_id = request.GET.get('product_id', None)
-        if not product_id:
-            return Response(['Please Send product_id as query string.'])
-        try:
-            product_review = UserProductReviewAfterSpam.objects.filter(product_id=product_id)
-            first_date = product_review.order_by('date_review').first().date_review
-            last_date = product_review.order_by('date_review').last().date_review
-            difference = (last_date - first_date) / 3
-            second_date = first_date + datetime.timedelta(days=difference.days)
-            third_date = second_date + datetime.timedelta(days=difference.days)
-            fourth_date = third_date + datetime.timedelta(days=difference.days)
-            output_data = product_review.filter(date_review__gt=third_date,
-                                                date_review__lte=fourth_date)
-        except UserProductReviewAfterSpam.DoesNotExist:
-            return Response(['Please send valid new product_id.'])
-        laggard_rating_tot = 0
-        lst_data = []
-        for row in output_data:
-            dct_data = {}
-            dct_data['id'] = row.id
-            dct_data['product_id'] = row.product_id
-            dct_data['product_name'] = row.product_name
-            dct_data['reviewer_id'] = row.reviewer_id
-            dct_data['reviewer_name'] = row.reviewer_name
-            dct_data['review_text'] = row.review_text
-            dct_data['overall_rating'] = row.overall_rating
-            laggard_rating_tot += row.overall_rating
-            dct_data['summary_product'] = row.summary_product
-            dct_data['timestamp_review'] = row.timestamp_review
-            dct_data['date_review'] = row.date_review
-            lst_data.append(dct_data)
-        rating_avg = laggard_rating_tot / len(output_data)
-        laggard_count = len(output_data)
-        data = {'rating_avg': rating_avg, 'laggard_count': laggard_count, 'data': lst_data}
-
-        return Response(data)
-
-    @list_route()
-    def sentimental_analysis(self, request):
-        pos = 0
-        neg = 0
-        product_id = request.GET.get('product_id', None)
-        if not product_id:
-            return Response(['Please Send product_id as query string.'])
-        try:
-            product_review = UserProductReviewAfterSpam.objects.filter(product_id=product_id)
-            first_date = product_review.order_by('date_review').first().date_review
-            last_date = product_review.order_by('date_review').last().date_review
-            difference = (last_date - first_date) / 3
-            second_date = first_date + datetime.timedelta(days=difference.days)
-            output_data = product_review.filter(date_review__gte=first_date,
-                                                date_review__lte=second_date)
-        except UserProductReviewAfterSpam.DoesNotExist:
-            return Response(['Please send valid new product_id.'])
-
-        def extract_features(word_list):
-            return dict([(word, True) for word in word_list])
-
-        def sentimental_output(review_text, co, pos, neg):
-            # print("TXT", review_text.split('.'))
-            split_text = review_text.split('.')
-            if co == 1:
-                # print("if-COUNT", co)
-                positive_fileids = movie_reviews.fileids('pos')
-                negative_fileids = movie_reviews.fileids('neg')
-                features_positive = [(extract_features(movie_reviews.words(fileids=[f])), 'Positive') for f in
-                                     positive_fileids]
-                features_negative = [(extract_features(movie_reviews.words(fileids=[f])), 'Negative') for f in
-                                     negative_fileids]
-                threshold_factor = 0.8
-                threshold_positive = int(threshold_factor * len(features_positive))
-                threshold_negative = int(threshold_factor * len(features_negative))
-                features_train = features_positive[:threshold_positive] + features_negative[:threshold_negative]
-                features_test = features_positive[threshold_positive:] + features_negative[threshold_negative:]
-
-                self.classifier = NaiveBayesClassifier.train(features_train)
-            pred_sentiment_lst = []
-            pred_sentiment_sum = 0
-            for text in split_text:
-                probdist = self.classifier.prob_classify(extract_features(text.split()))
-                # print("PROB_DIST", vars(probdist))
-                pred_sentiment = probdist.max()
-                text_probability = round(probdist.prob(pred_sentiment), 2)
-                pred_sentiment_sum += text_probability
-                pred_sentiment_lst.append(pred_sentiment)
-            # print("SENTI", pred_sentiment)
-            positive_counter = 0
-            negative_counter = 0
-            print("LST", pred_sentiment_lst)
-            for i in range(0, len(pred_sentiment_lst)):
-                if pred_sentiment_lst[i] == 'Positive':
-                    positive_counter += 1
-                else:
-                    negative_counter += 1
-            print("counter", positive_counter)
-            lst_data = []
-            dct_data = {}
-            dct_data['product_name'] = row.product_name
-            dct_data['reviewer_name'] = row.reviewer_name
-            dct_data['review_text'] = review_text
-            # dct_data['predicted_sentiment'] = pred_sentiment
-            dct_data['predicted_sentiment'] = "Positive" if positive_counter >= negative_counter else "Negative"
-
-            if dct_data['predicted_sentiment'] == "Positive":
-                pos += 1
-
-            else:
-                neg += 1
-            # dct_data['Probability'] = round(probdist.prob(pred_sentiment), 2)
-            dct_data['Probability'] = round(pred_sentiment_sum / len(pred_sentiment_lst), 2)
-            lst_data.append(dct_data)
-
-            return [lst_data, pos, neg]
-
-        lst = []
-        rtn = []
-        tot_pos = 0
-        tot_neg = 0
-        co = 0
-        for row in output_data:
-            co += 1
-            # print("USER", row.reviewer_name)
-            rtn = sentimental_output(row.review_text, co, pos, neg)
-            lst.extend(rtn[0])
-            tot_pos += rtn[1]
-            tot_neg += rtn[2]
-        data = {'pos_count': tot_pos, 'neg_count': tot_neg, 'data': lst}
-        return Response(data)
-
-
 class AuthUserViewSet(viewsets.ViewSet):
 
     @action(methods=['POST'], detail=False)
@@ -392,11 +176,12 @@ class AuthUserViewSet(viewsets.ViewSet):
                 print('password', password)
                 random_generator = Random.new().read
                 key = RSA.generate(1024)
-                public = key.publickey()
-                public1 = public.exportKey('PEM')
+                public = key.publickey().exportKey('PEM')
+                public1 = public.decode()
                 private = key.exportKey('PEM')
+                private1 = private.decode()
                 app_user = AuthUser.objects.create_user(email, password, user_name, randomString=randomString,
-                                                        private=private, public=public1)
+                                                        private=private1, public=public1)
                 token = Token.objects.get_or_create(user=app_user)
                 trying_email(user_name, randomString, password, email)
                 return Response({'token': str(token[0]), 'message': 'registered successfully'},
@@ -441,35 +226,6 @@ class FileUploadViewSet(viewsets.ModelViewSet, FullListAPI):
 
     @transaction.atomic
     def create(self, request):
-        def extract_features(word_list):
-            return dict([(word, True) for word in word_list])
-
-        def sentimental_output():
-            positive_fileids = movie_reviews.fileids('pos')
-            negative_fileids = movie_reviews.fileids('neg')
-
-            features_positive = [(extract_features(movie_reviews.words(fileids=[f])), 'Positive')
-                                 for f in positive_fileids]
-            features_negative = [(extract_features(movie_reviews.words(fileids=[f])), 'Negative')
-                                 for f in negative_fileids]
-            threshold_factor = 0.8
-
-            threshold_positive = int(threshold_factor * len(features_positive))
-            threshold_negative = int(threshold_factor * len(features_negative))
-            features_train = features_positive[:threshold_positive] + features_negative[:threshold_negative]
-            features_test = features_positive[threshold_positive:] + features_negative[threshold_negative:]
-
-            self.classifier = NaiveBayesClassifier.train(features_train)
-
-        # @staticmethod
-        def sentimental_probdist(review_text):
-            probdist = self.classifier.prob_classify(extract_features(review_text.split()))
-            # print("prob_dist>>>>", probdist)
-
-            pred_sentiment = probdist.max()
-
-            return pred_sentiment
-
         # def decrypt(enc, password):
         #     private_key = hashlib.sha256(password.encode("utf-8")).digest()
         #     enc = base64.b64decode(enc)
@@ -560,9 +316,11 @@ class FileUploadViewSet(viewsets.ModelViewSet, FullListAPI):
                 with open(out_filename, 'wb') as outfile:
                     outfile.write(struct.pack('<Q', filesize))
                     outfile.write(iv)
+                    print('helloooo')
 
                     while True:
                         chunk = infile.read(chunksize)
+                        print('chunk',chunk)
                         if len(chunk) == 0:
                             break
                         elif len(chunk) % 16 != 0:
@@ -605,17 +363,6 @@ class FileUploadViewSet(viewsets.ModelViewSet, FullListAPI):
         # return Response('error: {}'.format(str(err)))
         # except Exception as err:
         # return Response(['Please upload proper file', str(err)])
-
-
-class UserProductReviewBeforeSpamViewSet(viewsets.ModelViewSet, FullListAPI):
-    queryset = UserProductReviewBeforeSpam.objects.all()
-    serializer_class = UserProductReviewBeforeSpamSerializer
-
-    # filter_fields = ['product_id']
-
-    def list(self, request):
-        self.queryset = self.queryset.filter_by_query_params(request)
-        return super(UserProductReviewBeforeSpamViewSet, self).list(request)
 
 
 #
@@ -669,25 +416,20 @@ class EncryptPdfFileViewSet(viewsets.ViewSet):
 
     @transaction.atomic
     def create(self, request):
-        pdfFileObj = request.data.get('file_upload', None)
-        print("PDF", pdfFileObj)
-        # pdfReader = PyPDF2.PdfFileReader(io.BytesIO(pdfFileObj))
-        # pdfReader = pdfFileObj.name
-        print('pdfreader', pdfFileObj)
-        # NumPages = pdfReader.numPages
-        i = 0
-        password = 'hello'
-        # file_name = "./" + str(uuid.uuid4()) + ".txt"
+        result = self.simple_upload(request)
+        print('file_result',result)
+
 
         # TODO: Uncmment
-        # email = request.data['email']
-        # product_review = AuthUser.objects.filter(email=email).first()
-        # public = bytes(product_review.public_key, 'utf-8')
+        email = request.data['email']
+        product_review = AuthUser.objects.filter(email=email).first()
+        public = product_review.public_key
+        private = product_review.private_key
         # ====================================
-        public1 = b'-----BEGIN PUBLIC KEY-----\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDWZkgcpaG3yHMa0Ru2y+wf8k7G\nBFTlav8Wwz49fyjlKQWc+k02kCVZeydV8LeeD3JDrBDN3eEebpvA8bmwt8izb1b/\nDn+DMGnKwJmO+Rtfzw697xiNR3pwm2BsiPT+69y+fuXqPzbMWXRWT5UF2jAkU72J\n15EXQ5vSY2b8pSA0TwIDAQAB\n-----END PUBLIC KEY-----'
-        private = b'-----BEGIN RSA PRIVATE KEY-----\nMIICXQIBAAKBgQDWZkgcpaG3yHMa0Ru2y+wf8k7GBFTlav8Wwz49fyjlKQWc+k02\nkCVZeydV8LeeD3JDrBDN3eEebpvA8bmwt8izb1b/Dn+DMGnKwJmO+Rtfzw697xiN\nR3pwm2BsiPT+69y+fuXqPzbMWXRWT5UF2jAkU72J15EXQ5vSY2b8pSA0TwIDAQAB\nAoGABqtCszJO25SD2BOXEzX/iJ9N5mwKg/8H6rbKByt0asDa6J8Cx5+ZyAo13j8K\nDjy0/God37JamNj1fqhiq/P/GAnZavz7VlMkW5H+AsPRFkw56kBwg+Wa+ZkZ05DX\nn2kvKqIFgJHDkvK1qVtM3bTqYneTxAgjmXkSYY5KHL2BspECQQDijEGixJo5lNOr\nEC3w2ydq+nO7mEmInB1T6hyJmx8WSo6D4vf+XE3NnqlaDM5/ovJcs3KmbNcygzZz\nXpr5No/JAkEA8kW3W1YID8Or38WItX+1AoFmYlDEdoXn8PuGJlOiJLJ00OzwB3zZ\nNOYzrrEDvX8VDwYQusffbRSKKSSlpMwfVwJBAJgyGbY71lBwx3LYv8RbtrOL5kxV\nFrGMD7fcQ6e+argTBoNb67caU7qbqLIygFgHJENa2t8rp7brp50CJaLfIOECQQDV\ni4nQogY9DvXiKdUUVdqQuMosApEI/4KvsKRQCAu1WO8KcK4pi2xQ6k/HvRNU5j0D\nnw8D88UF+sLE/R5cIefFAkB3gu/h1TVLpdXS5W2GaudiNsSl52gG8SjxnNhBH4lw\nGH9sBVYxkmROZTMBwL6nwoKuzu1sAJf3zLbALo/XP480\n-----END RSA PRIVATE KEY-----'
-        rsa_publickey = RSA.importKey(public1)
-        rsa_privatekey = RSA.importKey(private)
+        # public1 = b'-----BEGIN PUBLIC KEY-----\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDWZkgcpaG3yHMa0Ru2y+wf8k7G\nBFTlav8Wwz49fyjlKQWc+k02kCVZeydV8LeeD3JDrBDN3eEebpvA8bmwt8izb1b/\nDn+DMGnKwJmO+Rtfzw697xiNR3pwm2BsiPT+69y+fuXqPzbMWXRWT5UF2jAkU72J\n15EXQ5vSY2b8pSA0TwIDAQAB\n-----END PUBLIC KEY-----'
+        # private = b'-----BEGIN RSA PRIVATE KEY-----\nMIICXQIBAAKBgQDWZkgcpaG3yHMa0Ru2y+wf8k7GBFTlav8Wwz49fyjlKQWc+k02\nkCVZeydV8LeeD3JDrBDN3eEebpvA8bmwt8izb1b/Dn+DMGnKwJmO+Rtfzw697xiN\nR3pwm2BsiPT+69y+fuXqPzbMWXRWT5UF2jAkU72J15EXQ5vSY2b8pSA0TwIDAQAB\nAoGABqtCszJO25SD2BOXEzX/iJ9N5mwKg/8H6rbKByt0asDa6J8Cx5+ZyAo13j8K\nDjy0/God37JamNj1fqhiq/P/GAnZavz7VlMkW5H+AsPRFkw56kBwg+Wa+ZkZ05DX\nn2kvKqIFgJHDkvK1qVtM3bTqYneTxAgjmXkSYY5KHL2BspECQQDijEGixJo5lNOr\nEC3w2ydq+nO7mEmInB1T6hyJmx8WSo6D4vf+XE3NnqlaDM5/ovJcs3KmbNcygzZz\nXpr5No/JAkEA8kW3W1YID8Or38WItX+1AoFmYlDEdoXn8PuGJlOiJLJ00OzwB3zZ\nNOYzrrEDvX8VDwYQusffbRSKKSSlpMwfVwJBAJgyGbY71lBwx3LYv8RbtrOL5kxV\nFrGMD7fcQ6e+argTBoNb67caU7qbqLIygFgHJENa2t8rp7brp50CJaLfIOECQQDV\ni4nQogY9DvXiKdUUVdqQuMosApEI/4KvsKRQCAu1WO8KcK4pi2xQ6k/HvRNU5j0D\nnw8D88UF+sLE/R5cIefFAkB3gu/h1TVLpdXS5W2GaudiNsSl52gG8SjxnNhBH4lw\nGH9sBVYxkmROZTMBwL6nwoKuzu1sAJf3zLbALo/XP480\n-----END RSA PRIVATE KEY-----'
+        rsa_publickey = RSA.importKey(public.encode('utf-8'))
+        rsa_privatekey = RSA.importKey(private.encode('utf-8'))
         print('importkey', rsa_publickey)
         cipher = PKCS1_OAEP.new(rsa_publickey)
         cipher1 = PKCS1_OAEP.new(rsa_privatekey)
@@ -696,7 +438,18 @@ class EncryptPdfFileViewSet(viewsets.ViewSet):
         print('key encryped', ciphertext)
         plaintext = cipher1.decrypt(ciphertext)
         print('key decrypted', plaintext)
-        out = self.encrypt_file(b'00112233445566778899aabbccddeeff', pdfFileObj)
+
+        lettersAndDigits = string.ascii_letters + string.digits
+        randomString = "".join(random.choice(lettersAndDigits) for i in range(32))
+        result_random= randomString.encode('utf-8')
+        print('generated secret key',result_random)
+        secret_encrypted = self.encrypt_secret(result_random,rsa_publickey)
+        secret_decrypted = self.decrypt_secret(secret_encrypted,rsa_privatekey )
+        print('encrypted secret key',secret_encrypted)
+        print('decrypted secret key', secret_decrypted)
+
+        out = self.encrypt_file(result_random, result)
+        self.decrypt_file(result_random, out)
         return Response({"message": "success"})
 
     def encrypt_file(self, key, in_filename, out_filename=None, chunksize=64 * 1024):
@@ -721,7 +474,7 @@ class EncryptPdfFileViewSet(viewsets.ViewSet):
                 chunksize must be divisible by 16.
         """
         if not out_filename:
-            out_filename = in_filename.name + '.enc'
+            out_filename = in_filename + '.enc'
             print('filename', out_filename)
         # iv = ''.join(chr(random.randint(0, 0xFF)) for i in range(16))
         iv = os.urandom(16)
@@ -729,9 +482,11 @@ class EncryptPdfFileViewSet(viewsets.ViewSet):
         print('eiv', iv)
         encryptor = AES.new(key, AES.MODE_CBC, iv)
         print('encryptor', encryptor)
-        filesize = os.path.getsize(str(in_filename))
+        hello =  os.path.abspath(os.path.join('media', in_filename))
+        print('helllllo',hello)
+        filesize = os.path.getsize(hello)
         print('filesize', filesize)
-        with open(in_filename, 'rb') as infile:
+        with open(hello, 'rb') as infile:
             with open(out_filename, 'wb') as outfile:
                 outfile.write(struct.pack('<Q', filesize))
                 outfile.write(iv)
@@ -741,16 +496,55 @@ class EncryptPdfFileViewSet(viewsets.ViewSet):
                     if len(chunk) == 0:
                         break
                     elif len(chunk) % 16 != 0:
-                        chunk += ' ' * (16 - len(chunk) % 16)
+                        chunk1 = b' ' * (16 - len(chunk) % 16)
+                        print('hellloo',type(chunk1))
+                        chunk += chunk1
 
                     outfile.write(encryptor.encrypt(chunk))
         return out_filename
 
-    git config --
-    global user.email
-    "you@example.com"
-    git
-    config - -
-    global user.name
-    "Your Name"
+
+    def decrypt_file(self,key, in_filename, out_filename=None, chunksize=24 * 1024):
+        """ Decrypts a file using AES (CBC mode) with the
+            given key. Parameters are similar to encrypt_file,
+            with one difference: out_filename, if not supplied
+            will be in_filename without its last extension
+            (i.e. if in_filename is 'aaa.zip.enc' then
+            out_filename will be 'aaa.zip')
+        """
+        if not out_filename:
+            out_filename = os.path.splitext(in_filename)[0]
+        hello = os.path.abspath(os.path.join(in_filename))
+        with open(hello, 'rb') as infile:
+            origsize = struct.unpack('<Q', infile.read(struct.calcsize('Q')))[0]
+            iv = infile.read(16)
+            decryptor = AES.new(key, AES.MODE_CBC, iv)
+
+            with open(out_filename, 'wb') as outfile:
+                while True:
+                    chunk = infile.read(chunksize)
+                    if len(chunk) == 0:
+                        break
+                    outfile.write(decryptor.decrypt(chunk))
+
+                outfile.truncate(origsize)
+
+    def simple_upload(self,request):
+        if request.method == 'POST' and request.FILES['file_upload']:
+            myfile = request.FILES['file_upload']
+            print('myfileee',myfile.name)
+            fs = FileSystemStorage()
+            filename = fs.save(myfile.name, myfile)
+            uploaded_file_url = fs.url(filename)
+            return filename
+
+    def encrypt_secret(self,secret,public_key):
+        cipher = PKCS1_OAEP.new(public_key)
+        ciphertext = cipher.encrypt(secret)
+        return ciphertext
+    def decrypt_secret(self,cipher_secret,private_key):
+        cipher1 = PKCS1_OAEP.new(private_key)
+        plaintext = cipher1.decrypt(cipher_secret)
+        return plaintext
+
 
