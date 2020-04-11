@@ -5,6 +5,7 @@ import io
 import PyPDF2
 import uuid
 import pickle
+import time
 # from paillier.paillier import *
 
 
@@ -15,6 +16,10 @@ import Crypto
 from Crypto.PublicKey import RSA
 from Crypto import Random
 import base64
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import padding
 import os, random, struct
 from Crypto.Cipher import AES
 from django.contrib.auth import authenticate
@@ -281,26 +286,6 @@ class FileUploadViewSet(viewsets.ModelViewSet, FullListAPI):
         #    # print('encrypted', text)
 
         def encrypt_file(key, in_filename, out_filename=None, chunksize=64*1024):
-            """ Encrypts a file using AES (CBC mode) with the
-                given key.
-
-                key:
-                    The encryption key - a string that must be
-                    either 16, 24 or 32 bytes long. Longer keys
-                    are more secure.
-
-                in_filename:
-                    Name of the input file
-
-                out_filename:
-                    If None, '<in_filename>.enc' will be used.
-
-                chunksize:
-                    Sets the size of the chunk which the function
-                    uses to read and encrypt the file. Larger chunk
-                    sizes can be faster for some files and machines.
-                    chunksize must be divisible by 16.
-            """
             if not out_filename:
                 out_filename = in_filename.name + '.enc'
                 print('filename', out_filename)
@@ -330,13 +315,6 @@ class FileUploadViewSet(viewsets.ModelViewSet, FullListAPI):
             return out_filename
 
         def decrypt_file(key, in_filename, out_filename=None, chunksize=24 * 1024):
-            """ Decrypts a file using AES (CBC mode) with the
-                given key. Parameters are similar to encrypt_file,
-                with one difference: out_filename, if not supplied
-                will be in_filename without its last extension
-                (i.e. if in_filename is 'aaa.zip.enc' then
-                out_filename will be 'aaa.zip')
-            """
             if not out_filename:
                 out_filename = os.path.splitext(in_filename)[0]
 
@@ -435,11 +413,45 @@ class EncryptPdfFileViewSet(viewsets.ViewSet):
         secret_encrypted = self.encrypt_secret(result_random,rsa_publickey)
         secret_decrypted = self.decrypt_secret(secret_encrypted,rsa_privatekey )
         print('encrypted secret key',secret_encrypted)
+        
         print('decrypted secret key', secret_decrypted)
 
         out = self.encrypt_file(result_random, result)
+        time.sleep(10)
         self.decrypt_file(result_random, out)
+        self.sign(private,out)
         return Response({"message": "success"})
+
+    def sign(self,private_key,enc_file):
+        print('signnnnnnn')
+        sign_private_key = serialization.load_pem_private_key(private_key.encode(), password=None, backend=default_backend(),)
+        print('ppp', sign_private_key)
+
+        file_path = os.path.abspath(os.path.join(enc_file))
+        with open(file_path, 'rb') as f:
+            payload = f.read()
+        # Sign the payload file.
+        signature = base64.b64encode(
+            sign_private_key.sign(
+                payload,
+                padding.PSS(
+                    mgf=padding.MGF1(hashes.SHA256()),
+                    salt_length=padding.PSS.MAX_LENGTH,
+                ),
+                hashes.SHA256(),
+            )
+        )
+        sign_file= os.path.splitext(enc_file)
+        print('laaa',sign_file)
+        signed_file = sign_file[0] +'.sig'
+        JsonFileUpload.objects.create(file_upload=os.path.abspath(os.path.join(signed_file)))
+        with open(signed_file, 'wb') as f:
+            f.write(signature)
+
+
+
+
+
 
     def encrypt_file(self, key, in_filename, out_filename=None, chunksize=64 * 1024):
         """ Encrypts a file using AES (CBC mode) with the
@@ -494,13 +506,6 @@ class EncryptPdfFileViewSet(viewsets.ViewSet):
 
 
     def decrypt_file(self,key, in_filename, out_filename=None, chunksize=24 * 1024):
-        """ Decrypts a file using AES (CBC mode) with the
-            given key. Parameters are similar to encrypt_file,
-            with one difference: out_filename, if not supplied
-            will be in_filename without its last extension
-            (i.e. if in_filename is 'aaa.zip.enc' then
-            out_filename will be 'aaa.zip')
-        """
         if not out_filename:
             out_filename = os.path.splitext(in_filename)[0]
         hello = os.path.abspath(os.path.join(in_filename))

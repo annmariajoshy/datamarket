@@ -1,4 +1,4 @@
-#!/home/user/Downloads/project/early_review_backend/env/bin/python3
+#!/home/ubuntu/Downloads/project/early_review_backend/env/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys

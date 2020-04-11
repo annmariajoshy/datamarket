@@ -97,7 +97,7 @@ WSGI_APPLICATION = 'early_review_backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'miniproject',
+        'NAME': 'datamarket',
         'HOST': 'localhost',
         'PORT': '5432',
         'USER': 'postgres',
