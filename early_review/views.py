@@ -28,6 +28,8 @@ from rest_framework import viewsets, status
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 
+from django.core.files import File
+
 import base64
 import hashlib
 from Crypto.Cipher import AES
@@ -35,7 +37,7 @@ from Crypto import Random
 
 from .serializers import (UserProductReviewAfterSpamSerializer, AuthUserSerializer, JsonFileUploadSerializer,
                           UserProductReviewBeforeSpamSerializer, EncryptFileSerializer)
-from .models import (UserProductReviewAfterSpam, AuthUser, JsonFileUpload, UserThreshold, UserProductReviewBeforeSpam)
+from .models import (UserProductReviewAfterSpam, AuthUser, JsonFileUpload, UserThreshold, UserProductReviewBeforeSpam,EncryptionInfo)
 from rest_framework.decorators import detail_route, list_route, action
 
 import nltk.classify.util
@@ -417,9 +419,9 @@ class EncryptPdfFileViewSet(viewsets.ViewSet):
         print('decrypted secret key', secret_decrypted)
 
         out = self.encrypt_file(result_random, result)
-        time.sleep(10)
-        self.decrypt_file(result_random, out)
-        self.sign(private,out)
+        EncryptionInfo.objects.create(email=email,file_title='hello',encrypted_file=File(open(out)),secret_key_encrypted=secret_encrypted.decode())
+        #self.decrypt_file(result_random, out)
+        #self.sign(private,out)
         return Response({"message": "success"})
 
     def sign(self,private_key,enc_file):
@@ -444,9 +446,11 @@ class EncryptPdfFileViewSet(viewsets.ViewSet):
         sign_file= os.path.splitext(enc_file)
         print('laaa',sign_file)
         signed_file = sign_file[0] +'.sig'
-        JsonFileUpload.objects.create(file_upload=os.path.abspath(os.path.join(signed_file)))
         with open(signed_file, 'wb') as f:
             f.write(signature)
+        JsonFileUpload.objects.create(file_upload=File(open(signed_file)))
+        #return signed_file
+
 
 
 
@@ -535,6 +539,7 @@ class EncryptPdfFileViewSet(viewsets.ViewSet):
     def encrypt_secret(self,secret,public_key):
         cipher = PKCS1_OAEP.new(public_key)
         ciphertext = cipher.encrypt(secret)
+        print('TYPE OF SECRET KEY',type(ciphertext))
         return ciphertext
     def decrypt_secret(self,cipher_secret,private_key):
         cipher1 = PKCS1_OAEP.new(private_key)

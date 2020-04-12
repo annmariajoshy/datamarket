@@ -95,6 +95,12 @@ class JsonFileUpload(AbstractTimeStampModel):
     def __str__(self):
         return self.file_upload.url
 
+class EncryptionInfo(AbstractTimeStampModel):
+    email = models.EmailField(unique=True)
+    file_title = models.CharField(max_length=1000)
+    encrypted_file = models.FileField(upload_to='encryption_files')
+    secret_key_encrypted=models.BinaryField(max_length=10000)
+
 
 class UserThreshold(AbstractTimeStampModel):
     """
