@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import (UserProductReviewAfterSpam, AuthUser, JsonFileUpload,  UserProductReviewBeforeSpam)
+from .models import (UserProductReviewAfterSpam, AuthUser, JsonFileUpload,  UserProductReviewBeforeSpam, SignedFile, EncryptionInfo)
 
 
 class DynamicFieldsModelSerializer(serializers.ModelSerializer):
@@ -55,6 +55,20 @@ class AuthUserSerializer(serializers.ModelSerializer):
         # fields = [f.name for f in model._meta.fields]
         exclude = ['password', 'is_staff', 'groups', 'user_permissions']
 
+class SignedFileSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = SignedFile
+        # fields = [f.name for f in model._meta.fields]
+        fields = '__all__'
+
+class EncryptionInfoSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = EncryptionInfo
+        # fields = [f.name for f in model._meta.fields]
+        exclude = ['secret_key_encrypted']
+
 
 class JsonFileUploadSerializer(DynamicFieldsModelSerializer):
     class Meta:
@@ -72,6 +86,8 @@ class UserProductReviewBeforeSpamSerializer(serializers.ModelSerializer):
 
 class EncryptFileSerializer(serializers.Serializer):
     file_upload = serializers.FileField()
+    email       = serializers.CharField()
+    title       = serializers.CharField()
 
     class Meta:
-        fields = 'file_upload'
+        fields = '__all__'

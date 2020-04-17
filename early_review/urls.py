@@ -2,7 +2,7 @@ from django.conf import settings
 from django.conf.urls import url, include
 from django.conf.urls.static import static
 from rest_framework import routers
-from .views import  AuthUserViewSet, AuthUserModelViewSet, FileUploadViewSet, EncryptPdfFileViewSet
+from .views import  AuthUserViewSet, AuthUserModelViewSet, FileUploadViewSet, EncryptPdfFileViewSet, BatchVerificationViewSet, BatchListModelViewSet,FileListModelViewSet, FileDownloadModelViewSet
 
 router = routers.SimpleRouter()
 #router.register('user-product-early', UserProductReviewAfterSpamViewSet,
@@ -14,6 +14,10 @@ router.register('users', AuthUserModelViewSet,
 # router.register('file-upload', FileUploadViewSet, base_name='file-upload')
 router.register('file-upload', EncryptPdfFileViewSet, base_name='file-upload')
 #router.register('user-product-before-spam', UserProductReviewBeforeSpamViewSet, base_name='user-product-before-spam')
+router.register('verify', BatchVerificationViewSet, base_name='verify')
+router.register('list-verify', BatchListModelViewSet, base_name='list-verify')
+router.register('file-list', FileListModelViewSet, base_name='file-list')
+router.register('file-download', FileDownloadModelViewSet, base_name='file-download')
 
 urlpatterns = [
     url(r'^api/', include(router.urls)),

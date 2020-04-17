@@ -16,10 +16,12 @@ import Crypto
 from Crypto.PublicKey import RSA
 from Crypto import Random
 import base64
+import cryptography.exceptions
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.serialization import load_pem_public_key
 import os, random, struct
 from Crypto.Cipher import AES
 from django.contrib.auth import authenticate
@@ -29,6 +31,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 
 from django.core.files import File
+from django.http import HttpResponse, Http404
 
 import base64
 import hashlib
@@ -36,8 +39,8 @@ from Crypto.Cipher import AES
 from Crypto import Random
 
 from .serializers import (UserProductReviewAfterSpamSerializer, AuthUserSerializer, JsonFileUploadSerializer,
-                          UserProductReviewBeforeSpamSerializer, EncryptFileSerializer)
-from .models import (UserProductReviewAfterSpam, AuthUser, JsonFileUpload, UserThreshold, UserProductReviewBeforeSpam,EncryptionInfo)
+                          UserProductReviewBeforeSpamSerializer, EncryptFileSerializer,SignedFileSerializer, EncryptionInfoSerializer)
+from .models import (UserProductReviewAfterSpam, AuthUser, JsonFileUpload, UserThreshold, UserProductReviewBeforeSpam, EncryptionInfo, SignedFile)
 from rest_framework.decorators import detail_route, list_route, action
 
 import nltk.classify.util
@@ -153,49 +156,60 @@ class AuthUserViewSet(viewsets.ViewSet):
             else:
                 token = Token.objects.get_or_create(user=user)
                 # private_key= UserProductReviewAfterSpam.objects.filter(email=email)
-                return Response({'token': str(token[0]), 'message': 'login successfully'}, status=status.HTTP_200_OK)
+                return Response({'token': str(token[0]), 'message': 'login successfully','usertype':user.usertype}, status=status.HTTP_200_OK)
         else:
             return Response({'error': 'provide email and password'}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(methods=['POST'], detail=False)
     def register(self, request):
         print('request', request.data);
+        usertype = request.data.get('usertype', None).strip()
+        print('ooooooooo',usertype)
         email_str = request.data.get('email', None)
         # password_str = request.data.get('password', None)
         user_name_str = request.data.get('username', None)
+        password = request.data.get('password', None)
 
         email = email_str.strip()
         # password = password_str.strip()
         user_name = user_name_str.strip()
 
         # if email and password and user_name:
-        if email and user_name:
-            try:
-                user = AuthUser.objects.get_by_natural_key(email)
-                return Response({'error': 'user already exist'}, status=status.HTTP_400_BAD_REQUEST)
+        if usertype == "seller":
+            if email and user_name:
+                try:
+                    user = AuthUser.objects.get_by_natural_key(email)
+                    return Response({'error': 'user already exist'}, status=status.HTTP_400_BAD_REQUEST)
 
-            except AuthUser.DoesNotExist:
-                lettersAndDigits = user_name + string.digits
-                randomString = ''.join(random.choice(lettersAndDigits) for i in range(6))
-                print('random string', randomString)
-                password_characters = string.ascii_letters + string.digits + string.punctuation
-                password = ''.join(random.choice(password_characters) for i in range(5))
-                print('password', password)
-                random_generator = Random.new().read
-                key = RSA.generate(1024)
-                public = key.publickey().exportKey('PEM')
-                public1 = public.decode()
-                private = key.exportKey('PEM')
-                private1 = private.decode()
-                app_user = AuthUser.objects.create_user(email, password, user_name, randomString=randomString,
-                                                        private=private1, public=public1)
-                token = Token.objects.get_or_create(user=app_user)
-                trying_email(user_name, randomString, password, email)
-                return Response({'token': str(token[0]), 'message': 'registered successfully'},
-                                status=status.HTTP_200_OK)
+                except AuthUser.DoesNotExist:
+                    lettersAndDigits = user_name + string.digits
+                    randomString = ''.join(random.choice(lettersAndDigits) for i in range(6))
+                    password_characters = string.ascii_letters + string.digits + string.punctuation
+                    password = ''.join(random.choice(password_characters) for i in range(5))
+                    random_generator = Random.new().read
+                    key = RSA.generate(1024)
+                    public = key.publickey().exportKey('PEM')
+                    public1 = public.decode()
+                    private = key.exportKey('PEM')
+                    private1 = private.decode()
+                    print('usertypeeee',usertype)
+                    app_user = AuthUser.objects.create_user(email, password, user_name, randomString=randomString,
+                                                            private=private1, public=public1,usertype=usertype)
+                    token = Token.objects.get_or_create(user=app_user)
+                    trying_email(user_name, randomString, password, email)
+                    return Response({'token': str(token[0]), 'message': 'registered successfully'},
+                                    status=status.HTTP_200_OK)
+
+            else:
+                return Response({'error': 'provide email and password'}, status=status.HTTP_400_BAD_REQUEST)
 
         else:
-            return Response({'error': 'provide email and password'}, status=status.HTTP_400_BAD_REQUEST)
+            print('usertypeeee', usertype)
+            app_user = AuthUser.objects.create_user(email, password, user_name,usertype=usertype)
+            token = Token.objects.get_or_create(user=app_user)
+            return Response({'token': str(token[0]), 'message': 'registered successfully'},
+                            status=status.HTTP_200_OK)
+
 
     @action(methods=['POST'], detail=False)
     def changePassword(self, request):
@@ -290,20 +304,15 @@ class FileUploadViewSet(viewsets.ModelViewSet, FullListAPI):
         def encrypt_file(key, in_filename, out_filename=None, chunksize=64*1024):
             if not out_filename:
                 out_filename = in_filename.name + '.enc'
-                print('filename', out_filename)
            # iv = ''.join(chr(random.randint(0, 0xFF)) for i in range(16))
             iv = os.urandom(16)
             #iv = bytes(iv,'utf-8')
-            print('eiv', iv)
             encryptor = AES.new(key, AES.MODE_CBC, iv)
-            print('encryptor', encryptor)
             filesize = os.path.getsize(str(in_filename))
-            print('filesize', filesize)
             with open(in_filename, 'rb') as infile:
                 with open(out_filename, 'wb') as outfile:
                     outfile.write(struct.pack('<Q', filesize))
                     outfile.write(iv)
-                    print('helloooo')
 
                     while True:
                         chunk = infile.read(chunksize)
@@ -402,6 +411,9 @@ class EncryptPdfFileViewSet(viewsets.ViewSet):
 
         # TODO: Uncmment
         email = request.data['email']
+        title = request.data['title']
+        # email = 'annmariajoshy77@gmail.com'
+        # title='hello'
         product_review = AuthUser.objects.filter(email=email).first()
         public = product_review.public_key
         private = product_review.private_key
@@ -411,23 +423,17 @@ class EncryptPdfFileViewSet(viewsets.ViewSet):
         lettersAndDigits = string.ascii_letters + string.digits
         randomString = "".join(random.choice(lettersAndDigits) for i in range(32))
         result_random= randomString.encode('utf-8')
-        print('generated secret key',result_random)
         secret_encrypted = self.encrypt_secret(result_random,rsa_publickey)
         secret_decrypted = self.decrypt_secret(secret_encrypted,rsa_privatekey )
-        print('encrypted secret key',secret_encrypted)
-        
-        print('decrypted secret key', secret_decrypted)
-
         out = self.encrypt_file(result_random, result)
-        EncryptionInfo.objects.create(email=email,file_title='hello',encrypted_file=File(open(out)),secret_key_encrypted=secret_encrypted.decode())
+        EncryptionInfo.objects.create(email=email,file_title=title,encrypted_file_name=out,secret_key_encrypted=secret_encrypted)
+        #print('lalalla',type(EncryptionInfo.last().secret_key_encrypted))
         #self.decrypt_file(result_random, out)
-        #self.sign(private,out)
+        self.sign(private,out,email)
         return Response({"message": "success"})
 
-    def sign(self,private_key,enc_file):
-        print('signnnnnnn')
+    def sign(self,private_key,enc_file,email):
         sign_private_key = serialization.load_pem_private_key(private_key.encode(), password=None, backend=default_backend(),)
-        print('ppp', sign_private_key)
 
         file_path = os.path.abspath(os.path.join(enc_file))
         with open(file_path, 'rb') as f:
@@ -444,11 +450,10 @@ class EncryptPdfFileViewSet(viewsets.ViewSet):
             )
         )
         sign_file= os.path.splitext(enc_file)
-        print('laaa',sign_file)
         signed_file = sign_file[0] +'.sig'
         with open(signed_file, 'wb') as f:
             f.write(signature)
-        JsonFileUpload.objects.create(file_upload=File(open(signed_file)))
+            SignedFile.objects.create(email=email,encrypted_file_name=enc_file,signed_file_name=signed_file)
         #return signed_file
 
 
@@ -484,13 +489,9 @@ class EncryptPdfFileViewSet(viewsets.ViewSet):
         # iv = ''.join(chr(random.randint(0, 0xFF)) for i in range(16))
         iv = os.urandom(16)
         # iv = bytes(iv,'utf-8')
-        print('eiv', iv)
         encryptor = AES.new(key, AES.MODE_CBC, iv)
-        print('encryptor', encryptor)
         hello =  os.path.abspath(os.path.join('media', in_filename))
-        print('helllllo',hello)
         filesize = os.path.getsize(hello)
-        print('filesize', filesize)
         with open(hello, 'rb') as infile:
             with open(out_filename, 'wb') as outfile:
                 outfile.write(struct.pack('<Q', filesize))
@@ -502,7 +503,6 @@ class EncryptPdfFileViewSet(viewsets.ViewSet):
                         break
                     elif len(chunk) % 16 != 0:
                         chunk1 = b' ' * (16 - len(chunk) % 16)
-                        print('hellloo',type(chunk1))
                         chunk += chunk1
 
                     outfile.write(encryptor.encrypt(chunk))
@@ -530,20 +530,152 @@ class EncryptPdfFileViewSet(viewsets.ViewSet):
     def simple_upload(self,request):
         if request.method == 'POST' and request.FILES['file_upload']:
             myfile = request.FILES['file_upload']
-            print('myfileee',myfile.name)
             fs = FileSystemStorage()
             filename = fs.save(myfile.name, myfile)
             uploaded_file_url = fs.url(filename)
+            JsonFileUpload.objects.create(file_upload=myfile )
             return filename
 
     def encrypt_secret(self,secret,public_key):
         cipher = PKCS1_OAEP.new(public_key)
         ciphertext = cipher.encrypt(secret)
-        print('TYPE OF SECRET KEY',type(ciphertext))
         return ciphertext
     def decrypt_secret(self,cipher_secret,private_key):
         cipher1 = PKCS1_OAEP.new(private_key)
+        print('cipher1', cipher1)
         plaintext = cipher1.decrypt(cipher_secret)
         return plaintext
 
+
+class BatchVerificationViewSet(viewsets.ViewSet):
+    @action(methods=['GET'], detail=False)
+    def verify(self, request):
+        signed_list = SignedFile.objects.filter(checked=0)
+        print(signed_list)
+        if signed_list:
+            for sign in signed_list:
+                print('sign',sign)
+                email = sign.email
+                enc_file= sign.encrypted_file_name
+                sign_file = sign.signed_file_name
+                key = AuthUser.objects.filter(email=email).first()
+                public = key.public_key
+                print(public)
+                public_key = load_pem_public_key(public.encode(), default_backend())
+                enc_path = os.path.abspath(os.path.join(enc_file))
+                sign_path = os.path.abspath(os.path.join(sign_file))
+                with open(enc_path, 'rb') as f:
+                    payload_contents = f.read()
+                with open(sign_path, 'rb') as f:
+                    signature = base64.b64decode(f.read())
+
+                try:
+                    public_key.verify(
+                        signature,
+                        payload_contents,
+                        padding.PSS(
+                            mgf=padding.MGF1(hashes.SHA256()),
+                            salt_length=padding.PSS.MAX_LENGTH,
+                        ),
+                        hashes.SHA256(),
+                    )
+                    print ('true')
+                    SignedFile.objects.filter(email=email).update(checked=1)
+
+                except cryptography.exceptions.InvalidSignature as e:
+                    # print('ERROR: Payload and/or signature files failed verification!')
+                    SignedFile.objects.filter(email=email).delete()
+                    EncryptionInfo.objects.filter(email=email).delete()
+
+            return Response({"message": "success"})
+
+        else:
+            return Response({"message" :"no records found"})
+
+    # @action(methods=['GET'], detail=False)
+    # def list_verify(self,request):
+    #     signed_list = SignedFile.objects.filter(checked=1)
+    #     print (signed_list)
+    #     for sign in signed_list:
+    #     return Response({"message":"success","data": signed_list})
+
+class BatchListModelViewSet(viewsets.ModelViewSet, FullListAPI):
+    queryset = SignedFile.objects.filter(checked=0)
+    serializer_class = SignedFileSerializer
+
+class FileListModelViewSet(viewsets.ModelViewSet, FullListAPI):
+    queryset = EncryptionInfo.objects.all()
+    serializer_class = EncryptionInfoSerializer
+
+
+class FileDownloadModelViewSet(viewsets.ModelViewSet, FullListAPI):
+    serializer_class = EncryptionInfoSerializer
+
+    @action(methods=['POST'], detail=False)
+    def download(self, request):
+        email = request.data['email']
+        query_res = EncryptionInfo.objects.filter(email=email).first()
+        enc_file = query_res.encrypted_file_name
+        enc_secret = query_res.secret_key_encrypted
+        secret_key = enc_secret.replace(" ", "")
+        print ('length',len(secret_key))
+        print('secret decryption', enc_secret)
+        key = AuthUser.objects.filter(email=email).first()
+        private = key.private_key
+        rsa_privatekey = RSA.importKey(private.encode('utf-8'))
+        print('rsa private',rsa_privatekey)
+        # secret_decrypted = self.decrypt_secret(enc_secret, rsa_privatekey)
+        cipher1 = PKCS1_OAEP.new(rsa_privatekey)
+        plaintext = cipher1.decrypt(secret_key)
+
+        self.decrypt_file(plaintext , enc_file)
+
+    # def decrypt_secret(self, cipher_secret, private_key):
+    #     print('private',private_key)
+    #     print('cipherrrr',cipher_secret)
+    #     print('length',len(cipher_secret))
+    #     cipher1 = PKCS1_OAEP.new(private_key)
+    #     print('cipher1',cipher1)
+    #     plaintext = cipher1.decrypt(cipher_secret)
+    #     print('plaintext',plaintext)
+    #     return plaintext
+
+    def decrypt_file(self, key, in_filename, out_filename=None, chunksize=24 * 1024):
+        if not out_filename:
+            out_filename = os.path.splitext(in_filename)[0]
+        hello = os.path.abspath(os.path.join(in_filename))
+        with open(hello, 'rb') as infile:
+            origsize = struct.unpack('<Q', infile.read(struct.calcsize('Q')))[0]
+            iv = infile.read(16)
+            decryptor = AES.new(key, AES.MODE_CBC, iv)
+
+            with open(out_filename, 'wb') as outfile:
+                while True:
+                    chunk = infile.read(chunksize)
+                    if len(chunk) == 0:
+                        break
+                    outfile.write(decryptor.decrypt(chunk))
+
+                outfile.truncate(origsize)
+
+        with open(out_filename, 'rb') as fh:
+            response = HttpResponse(fh.read(), content_type="application/force-download")
+            response['Content-Disposition'] = 'inline; filename=' + os.path.basename(out_filename)
+            return response
+
+
+class FileDownloadModelViewSet(viewsets.ModelViewSet, FullListAPI):
+    serializer_class =  JsonFileUploadSerializer
+
+    @action(methods=['GET'], detail=False)
+    def download(self,request):
+        # hello = os.path.abspath(os.path.join('/media/json_files/bluebrain.pdf'))
+        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        print(BASE_DIR)
+        hello = BASE_DIR +'/media/json_files/bluebrain.pdf'
+        print(hello)
+        with open(hello, 'rb') as fh:
+            response = HttpResponse(fh.read(), content_type="application/force-download")
+            response['Content-Disposition'] = 'inline; filename=' + os.path.basename(hello)
+            return response
 
