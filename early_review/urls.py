@@ -2,7 +2,7 @@ from django.conf import settings
 from django.conf.urls import url, include
 from django.conf.urls.static import static
 from rest_framework import routers
-from .views import  AuthUserViewSet, AuthUserModelViewSet, FileUploadViewSet, EncryptPdfFileViewSet, BatchVerificationViewSet, BatchListModelViewSet,FileListModelViewSet, FileDownloadModelViewSet
+from .views import  AuthUserViewSet, AuthUserModelViewSet, EncryptPdfFileViewSet, BatchVerificationViewSet, BatchListModelViewSet,FileListModelViewSet, FileDownloadModelViewSet
 
 router = routers.SimpleRouter()
 #router.register('user-product-early', UserProductReviewAfterSpamViewSet,
