@@ -12,7 +12,7 @@ idna==2.8
 Markdown==3.1
 Naked==0.1.31
 nltk==3.4
-numpy==1.16.3
+numpy==1.22.0
 pandas==0.24.2
 paramiko==2.7.1
 phe==1.4.0
